@@ -344,7 +344,9 @@ def nosql_type_test():
     memcached_load_nosql(objects, numbers)
 
 
-def sql_type_test():
+sql_funcs = [tarantool_load_sql, redis_load_sql, mongo_load_sql, memcached_load_sql, mysql_load_sql]
+
+def sql_type_test(bases):
     BEER_FILE = "beer_subset.csv.gz"
     if not os.path.isfile(BEER_FILE):
         raise Exception("BEER not found")
@@ -352,24 +354,55 @@ def sql_type_test():
     df = pd.read_csv('beer_subset.csv.gz', parse_dates=['time'], compression='gzip', encoding='utf-8')
     df.dropna(inplace=True)
     tmp_time = df["time"]
-    df["time"] = df["time"].astype(int)
-
-    df["text"] = df["text"].astype(str)
     # import pickle
     # with open("sql.pickle", 'wb') as out:
     #     pickle.dump(df.to_dict(), out)
     print "Size pickle file sql %s Mb" % (os.path.getsize("sql.pickle") * 1.0 / (1024 * 1024))
-    #tarantool_load_sql(df)
-    #redis_load_sql(df)
-    #mongo_load_sql(df)
-    #df["time"] = tmp_time
-    #df["beer_name"] = "a" * 21
-    #mysql_load_sql(df)
-    memcached_load_sql(df)
+    for b in bases:
+        if b == 4:
+            df["time"] = tmp_time
+            df["beer_name"] = "a" * 21
+            sql_funcs[b](df)
+        else:
+            tmp_time = df["time"]
+            df["time"] = df["time"].astype(int)
+            df["text"] = df["text"].astype(str)
+            sql_funcs[b](df)
+
+import argparse
 
 def main():
-    nosql_type_test()
-    #sql_type_test()
+    parser = argparse.ArgumentParser(description="Memory benchmarks")
+    parser.add_argument("type" ,"--type", nargs='*', type=str ,help="type: S(SQL) or N(Nosql)")
+    parser.add_argument("bases", "--base", nargs='*',
+                        help="database: T(Tarantool), My(Mysql), R(Redis), Me(Memcached), Mg(MongoDB), A(All)")
+    args = parser.parse_args()
+    funcs = []
+
+    if args.type.tolowercase().contains('s'):
+        funcs.append(sql_type_test)
+    if args.type.tolowercase().contains('n'):
+        funcs.append(nosql_type_test)
+
+    bases = []
+    s = args.bases.tolowercase()
+    if s.contains('a'):
+        bases = [x for x in range(5)]
+    else:
+        if s.contains('t'):
+            bases.append(0)
+        if s.contains('r'):
+            bases.append(1)
+        if s.contains('Mg'):
+            bases.append(2)
+        if s.contains('Me'):
+            bases.append(3)
+        if s.contains('My'):
+            bases.append(4)
+    if not funcs:
+        print "specify type of test"
+    for f in funcs:
+        f(bases)
 
 if __name__ == "__main__":
     main()
