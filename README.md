@@ -19,6 +19,7 @@ To perform this test you need have databases and python connectors to this bases
 Also you need to have zlib and argparse python libraries
 
 # Usage of test
+``` bash
 To perform test you need to use script load.py
 
   python load.py --help 
@@ -33,5 +34,5 @@ To perform test you need to use script load.py
     --bases [BASES [BASES ...]], -b [BASES [BASES ...]]
                           database: T(Tarantool), My(Mysql), R(Redis),
                           Me(Memcached), Mg(MongoDB), A(All)
-
+```
 
