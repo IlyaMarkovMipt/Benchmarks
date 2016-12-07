@@ -32,7 +32,7 @@ def generate_object(id_, len_name, len_coords):
     return object_
 
 def generate_string(size=32):
-    chars = string.ascii_lowercase + string.digits
+    chars = string.ascii_lower + string.digits
     s = ''.join(random.choice(chars) for x in range(size))
     while s in strings:
         s = ''.join(random.choice(chars) for x1 in range(size))
@@ -321,7 +321,9 @@ def generate_and_save():
     with open(FILE_JSON, 'w') as out:
         json.dump(generate_objects(num_objects), out, separators=(',', ':'))
 
-def nosql_type_test():
+nosql_funcs = [tarantool_load_nosql, redis_load_nosql, mongo_load_nosql, memcached_load_nosql, mysql_load_nosql]
+
+def nosql_type_test(bases):
     if not os.path.isfile(FILE_JSON):
         generate_and_save()
     with open(FILE_JSON, 'r') as in_put:
@@ -337,11 +339,8 @@ def nosql_type_test():
     #         with open(name, 'wb') as out:
     #             pickle.dump(tmp_objects, out)
     #         print "Size pickle file %s: %s Mb" % (name ,os.path.getsize(name) * 1.0 / (1024 * 1024))
-    # tarantool_load_nosql(objects, numbers)
-    # mongo_load_nosql(objects, numbers)
-    # redis_load_nosql(objects, numbers)
-    # mysql_load_nosql(objects, numbers)
-    memcached_load_nosql(objects, numbers)
+    for b in bases:
+        nosql_funcs[b](objects,numbers)
 
 
 sql_funcs = [tarantool_load_sql, redis_load_sql, mongo_load_sql, memcached_load_sql, mysql_load_sql]
@@ -373,36 +372,53 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(description="Memory benchmarks")
-    parser.add_argument("type" ,"--type", nargs='*', type=str ,help="type: S(SQL) or N(Nosql)")
-    parser.add_argument("bases", "--base", nargs='*',
+    parser.add_argument("--type","-t", nargs='*', type=str ,help="type: S(SQL) or N(Nosql)")
+    parser.add_argument("--bases", "-b", nargs='*',
                         help="database: T(Tarantool), My(Mysql), R(Redis), Me(Memcached), Mg(MongoDB), A(All)")
     args = parser.parse_args()
     funcs = []
-
-    if args.type.tolowercase().contains('s'):
-        funcs.append(sql_type_test)
-    if args.type.tolowercase().contains('n'):
-        funcs.append(nosql_type_test)
+    for t in args.type:
+        if t.lower() == 's':
+            funcs.append(sql_type_test)
+            continue
+        if t.lower() == 'n':
+            funcs.append(nosql_type_test)
+        else:
+            print "wrong types keys " + t
+            exit(1)
 
     bases = []
-    s = args.bases.tolowercase()
-    if s.contains('a'):
-        bases = [x for x in range(5)]
-    else:
-        if s.contains('t'):
+    s = args.bases
+
+    for b in s:
+        if b.lower() == "t":
             bases.append(0)
-        if s.contains('r'):
+            continue
+        if b.lower() == "r":
             bases.append(1)
-        if s.contains('Mg'):
+            continue
+        if b.lower() == "mg":
             bases.append(2)
-        if s.contains('Me'):
+            continue
+        if b.lower() == "me":
             bases.append(3)
-        if s.contains('My'):
+            continue
+        if b.lower == "my":
             bases.append(4)
+            continue
+        else:
+            print "wrong base: " + b
+            exit(1)
+
     if not funcs:
         print "specify type of test"
+        exit(1)
+    if not bases:
+        print "specify bases"
+        exit(1)
     for f in funcs:
         f(bases)
-
+        
+    
 if __name__ == "__main__":
     main()
